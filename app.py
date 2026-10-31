@@ -31,14 +31,18 @@ with st.form("invoice_form"):
     # Selection for e-Invoice generation
     e_invoice_option = st.radio("Provide e-Invoice Details", ["No (Generate Later)", "Yes (Generate Now)"])
     
+    # Selection for e-Way Bill generation
+    e_way_bill_option = st.radio("Provide e-Way Bill Details", ["No (Generate Later)", "Yes (Generate Now)"])
+    
     submitted = st.form_submit_button("Push to Database")
 
 if submitted:
     # 1. Format date for Tally (YYYYMMDD)
     formatted_date = date.strftime("%Y%m%d")
     
-    # 2. Extract Yes/No for e-Invoice
+    # 2. Extract Yes/No for e-Invoice and e-Way Bill
     e_invoice_val = "Yes" if "Yes" in e_invoice_option else "No"
+    e_way_bill_val = "Yes" if "Yes" in e_way_bill_option else "No"
     
     # 3. Calculate Amounts and Tax XML based on selection
     base_amount = quantity * rate
@@ -90,6 +94,7 @@ if submitted:
                         <DATE>{formatted_date}</DATE>
                         <VOUCHERTYPENAME>Sales</VOUCHERTYPENAME>
                         <PROVIDEEINVOICEDETAILS>{e_invoice_val}</PROVIDEEINVOICEDETAILS>
+                        <PROVIDEEWAYBILLDETAILS>{e_way_bill_val}</PROVIDEEWAYBILLDETAILS>
                         <PARTYLEDGERNAME>{party_name}</PARTYLEDGERNAME>
                         
                         <ALLLEDGERENTRIES.LIST>
