@@ -7,8 +7,14 @@ st.set_page_config(page_title="Mobile Invoice Generator", layout="centered")
 
 st.title("Create Sales Invoice")
 
+# Generate an automatic invoice number using the current timestamp (e.g., MOB-2610311650)
+auto_invoice_no = f"MOB-{datetime.now().strftime('%y%m%d%H%M')}"
+
 # Create the input form
 with st.form("invoice_form"):
+    # Display the auto-generated number as a read-only field
+    st.text_input("Invoice Number (Auto-generated)", value=auto_invoice_no, disabled=True)
+    
     date = st.date_input("Invoice Date", datetime.today())
     party_name = st.text_input("Customer Name (Exact Tally Ledger Name)")
     item_name = st.text_input("Stock Item Name")
@@ -71,6 +77,7 @@ if submitted:
                     <VOUCHER VCHTYPE="Sales" ACTION="Create" OBJVIEW="Accounting Voucher View">
                         <DATE>{formatted_date}</DATE>
                         <VOUCHERTYPENAME>Sales</VOUCHERTYPENAME>
+                        <VOUCHERNUMBER>{auto_invoice_no}</VOUCHERNUMBER>
                         <PARTYLEDGERNAME>{party_name}</PARTYLEDGERNAME>
                         
                         <ALLLEDGERENTRIES.LIST>
@@ -108,7 +115,7 @@ if submitted:
         
         # 5. Check Response from Tally
         if "<CREATED>1</CREATED>" in response.text:
-            st.success("Invoice successfully created in Tally!")
+            st.success(f"Invoice {auto_invoice_no} successfully created in Tally!")
         else:
             st.error(f"Database Error: {response.text}")
     except Exception as e:
