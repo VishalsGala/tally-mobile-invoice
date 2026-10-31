@@ -21,13 +21,19 @@ with st.form("invoice_form"):
     # Selection for Local vs Interstate Taxes
     sale_type = st.radio("Sale Type", ["Local (CGST/SGST)", "Interstate (IGST)"])
     
+    # Selection for e-Invoice generation
+    e_invoice_option = st.radio("Provide e-Invoice Details", ["No (Generate Later)", "Yes (Generate Now)"])
+    
     submitted = st.form_submit_button("Push to Database")
 
 if submitted:
     # 1. Format date for Tally (YYYYMMDD)
     formatted_date = date.strftime("%Y%m%d")
     
-    # 2. Calculate Amounts and Tax XML based on selection
+    # 2. Extract Yes/No for e-Invoice
+    e_invoice_val = "Yes" if "Yes" in e_invoice_option else "No"
+    
+    # 3. Calculate Amounts and Tax XML based on selection
     base_amount = quantity * rate
     
     if sale_type == "Local (CGST/SGST)":
@@ -56,7 +62,7 @@ if submitted:
                             <AMOUNT>{tax_amount}</AMOUNT>
                         </ALLLEDGERENTRIES.LIST>"""
 
-    # 3. Build the XML Payload (VOUCHERNUMBER tag removed so Tally auto-generates it)
+    # 4. Build the XML Payload (VOUCHERNUMBER removed, PROVIDEEINVOICEDETAILS added)
     xml_data = f"""<ENVELOPE>
     <HEADER>
         <TALLYREQUEST>Import Data</TALLYREQUEST>
@@ -74,6 +80,7 @@ if submitted:
                     <VOUCHER VCHTYPE="Sales" ACTION="Create" OBJVIEW="Accounting Voucher View">
                         <DATE>{formatted_date}</DATE>
                         <VOUCHERTYPENAME>Sales</VOUCHERTYPENAME>
+                        <PROVIDEEINVOICEDETAILS>{e_invoice_val}</PROVIDEEINVOICEDETAILS>
                         <PARTYLEDGERNAME>{party_name}</PARTYLEDGERNAME>
                         
                         <ALLLEDGERENTRIES.LIST>
@@ -102,14 +109,14 @@ if submitted:
     </BODY>
 </ENVELOPE>"""
 
-    # 4. Push to Tally via Ngrok Tunnel
+    # 5. Push to Tally via Ngrok Tunnel
     url = "https://consensus-geology-cobalt.ngrok-free.dev"
     headers = {'Content-Type': 'text/xml'}
     
     try:
         response = requests.post(url, data=xml_data.encode('utf-8'), headers=headers)
         
-        # 5. Check Response from Tally
+        # 6. Check Response from Tally
         if "<CREATED>1</CREATED>" in response.text:
             st.success("Invoice successfully created! Tally has automatically assigned the next invoice number.")
         else:
