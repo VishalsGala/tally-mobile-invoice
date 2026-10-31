@@ -27,7 +27,7 @@ with st.form("invoice_form"):
     
     # Taxes and E-Invoice Options
     sale_type = st.radio("Sale Type", ["Local (CGST/SGST)", "Interstate (IGST)"])
-    e_invoice_option = st.radio("Provide e-Invoice Details", ["No", "Yes"])
+    e_invoice_option = st.radio("Generate E-invoice", ["No", "Yes"])
     
     # Manual E-Way Bill Inputs
     e_way_bill_option = st.radio("Provide e-Way Bill Details", ["No", "Yes (Enter Manually)"])
