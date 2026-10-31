@@ -9,8 +9,15 @@ st.title("Create Sales Invoice")
 
 # Create the input form
 with st.form("invoice_form"):
-    # Display a placeholder letting the user know Tally handles the numbering
     st.text_input("Invoice Number", value="Auto-assigned by Tally upon push", disabled=True)
+    
+    # Updated Company Selection Dropdown
+    company_name = st.selectbox("Select Company", [
+        "Ankit Enterprise", 
+        "Shree Ashapura Trading Company", 
+        "Laxmi Impex", 
+        "Ankit Enterprise (Partnership firm)"
+    ])
     
     date = st.date_input("Invoice Date", datetime.today())
     party_name = st.text_input("Customer Name (Exact Tally Ledger Name)")
@@ -57,69 +64,4 @@ if submitted:
         sales_ledger = "5903-5% Interstate-Sales" 
         tax_xml = f"""
                         <ALLLEDGERENTRIES.LIST>
-                            <LEDGERNAME>5% IGST on Sales</LEDGERNAME>
-                            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
-                            <AMOUNT>{tax_amount}</AMOUNT>
-                        </ALLLEDGERENTRIES.LIST>"""
-
-    # 4. Build the XML Payload (VOUCHERNUMBER removed, PROVIDEEINVOICEDETAILS added)
-    xml_data = f"""<ENVELOPE>
-    <HEADER>
-        <TALLYREQUEST>Import Data</TALLYREQUEST>
-    </HEADER>
-    <BODY>
-        <IMPORTDATA>
-            <REQUESTDESC>
-                <REPORTNAME>Vouchers</REPORTNAME>
-                <STATICVARIABLES>
-                    <SVCURRENTCOMPANY>ANKIT ENTERPRISE</SVCURRENTCOMPANY>
-                </STATICVARIABLES>
-            </REQUESTDESC>
-            <REQUESTDATA>
-                <TALLYMESSAGE xmlns:UDF="TallyUDF">
-                    <VOUCHER VCHTYPE="Sales" ACTION="Create" OBJVIEW="Accounting Voucher View">
-                        <DATE>{formatted_date}</DATE>
-                        <VOUCHERTYPENAME>Sales</VOUCHERTYPENAME>
-                        <PROVIDEEINVOICEDETAILS>{e_invoice_val}</PROVIDEEINVOICEDETAILS>
-                        <PARTYLEDGERNAME>{party_name}</PARTYLEDGERNAME>
-                        
-                        <ALLLEDGERENTRIES.LIST>
-                            <LEDGERNAME>{party_name}</LEDGERNAME>
-                            <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
-                            <AMOUNT>-{total_amount}</AMOUNT>
-                        </ALLLEDGERENTRIES.LIST>
-                        
-                        <ALLLEDGERENTRIES.LIST>
-                            <LEDGERNAME>{sales_ledger}</LEDGERNAME>
-                            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
-                            <AMOUNT>{base_amount}</AMOUNT>
-                            <INVENTORYALLOCATIONS.LIST>
-                                <STOCKITEMNAME>{item_name}</STOCKITEMNAME>
-                                <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
-                                <BILLEDQTY>{quantity} Mtr</BILLEDQTY>
-                                <RATE>{rate}/Mtr</RATE>
-                                <AMOUNT>{base_amount}</AMOUNT>
-                            </INVENTORYALLOCATIONS.LIST>
-                        </ALLLEDGERENTRIES.LIST>
-                        {tax_xml}
-                    </VOUCHER>
-                </TALLYMESSAGE>
-            </REQUESTDATA>
-        </IMPORTDATA>
-    </BODY>
-</ENVELOPE>"""
-
-    # 5. Push to Tally via Ngrok Tunnel
-    url = "https://consensus-geology-cobalt.ngrok-free.dev"
-    headers = {'Content-Type': 'text/xml'}
-    
-    try:
-        response = requests.post(url, data=xml_data.encode('utf-8'), headers=headers)
-        
-        # 6. Check Response from Tally
-        if "<CREATED>1</CREATED>" in response.text:
-            st.success("Invoice successfully created! Tally has automatically assigned the next invoice number.")
-        else:
-            st.error(f"Database Error: {response.text}")
-    except Exception as e:
-        st.error(f"Connection failed: {e}. Check if your Ngrok tunnel is running on the desktop.")
+                            <LEDGER
