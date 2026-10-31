@@ -52,9 +52,27 @@ if submitted:
         tax_amount = base_amount * 0.025  # 2.5% for CGST/SGST
         total_amount = base_amount + (tax_amount * 2)
         sales_ledger = "5903-5% Local-Sales"
-        tax_xml = f"""
-                        <ALLLEDGERENTRIES.LIST>
+        tax_xml = f"""<ALLLEDGERENTRIES.LIST>
                             <LEDGERNAME>2.5% CGST on Sales</LEDGERNAME>
                             <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
                             <AMOUNT>{tax_amount}</AMOUNT>
-                        </ALLLEDGERENTRIES.LIST
+                        </ALLLEDGERENTRIES.LIST>
+                        <ALLLEDGERENTRIES.LIST>
+                            <LEDGERNAME>2.5% SGST on Sales</LEDGERNAME>
+                            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                            <AMOUNT>{tax_amount}</AMOUNT>
+                        </ALLLEDGERENTRIES.LIST>"""
+    else:
+        tax_amount = base_amount * 0.05  # 5% for IGST
+        total_amount = base_amount + tax_amount
+        sales_ledger = "5903-5% Interstate-Sales" 
+        tax_xml = f"""<ALLLEDGERENTRIES.LIST>
+                            <LEDGERNAME>5% IGST on Sales</LEDGERNAME>
+                            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                            <AMOUNT>{tax_amount}</AMOUNT>
+                        </ALLLEDGERENTRIES.LIST>"""
+
+    # Build E-Way Bill XML block if enabled and a number is provided
+    eway_xml = ""
+    if e_way_bill_val ==
+    
