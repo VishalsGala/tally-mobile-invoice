@@ -11,7 +11,6 @@ st.title("Create Sales Invoice")
 url = "https://consensus-geology-cobalt.ngrok-free.dev"
 
 # Helper function to fetch live customers from Tally
-@st.cache_data(ttl=60) # Caches the list for 60 seconds to keep your mobile app fast
 def get_tally_customers(company):
     req_xml = f"""<ENVELOPE>
         <HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER>
@@ -28,10 +27,35 @@ def get_tally_customers(company):
         </BODY>
     </ENVELOPE>"""
     try:
-        res = requests.post(url, data=req_xml.encode('utf-8'), headers={'Content-Type': 'text/xml'}, timeout=4)
+        res = requests.post(url, data=req_xml.encode('utf-8'), headers={'Content-Type': 'text/xml'}, timeout=5)
         if res.status_code == 200:
             root = ET.fromstring(res.text)
-            # Extract all ledger names returned under Sundry Debtors
+            names = [elem.text for elem in root.findall('.//NAME') if elem.text]
+            return sorted(list(set(names)))
+    except Exception:
+        pass
+    return []
+
+# Helper function to fetch live stock items from Tally
+def get_tally_items(company):
+    req_xml = f"""<ENVELOPE>
+        <HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER>
+        <BODY>
+            <EXPORTDATA>
+                <REQUESTDESC>
+                    <REPORTNAME>List of Accounts</REPORTNAME>
+                    <STATICVARIABLES>
+                        <SVCURRENTCOMPANY>{company}</SVCURRENTCOMPANY>
+                        <ACCOUNTTYPE>Stock Items</ACCOUNTTYPE>
+                    </STATICVARIABLES>
+                </REQUESTDESC>
+            </EXPORTDATA>
+        </BODY>
+    </ENVELOPE>"""
+    try:
+        res = requests.post(url, data=req_xml.encode('utf-8'), headers={'Content-Type': 'text/xml'}, timeout=5)
+        if res.status_code == 200:
+            root = ET.fromstring(res.text)
             names = [elem.text for elem in root.findall('.//NAME') if elem.text]
             return sorted(list(set(names)))
     except Exception:
@@ -59,7 +83,13 @@ with st.form("invoice_form"):
     else:
         party_name = st.text_input("Customer Name (Exact Tally Ledger Name) - Tunnel Offline")
         
-    item_name = st.text_input("Stock Item Name")
+    # Dynamic Stock Item Fetching
+    live_items = get_tally_items(company_name)
+    if live_items:
+        item_name = st.selectbox("Stock Item Name", live_items)
+    else:
+        item_name = st.text_input("Stock Item Name (Exact Tally Name) - Tunnel Offline")
+        
     quantity = st.number_input("Quantity (in Mtr)", min_value=1.0, value=1.0, step=1.0)
     rate = st.number_input("Rate per unit", min_value=0.01, value=145.00, step=0.01)
     
