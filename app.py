@@ -28,7 +28,7 @@ def get_tally_customers(company):
     </ENVELOPE>"""
     try:
         res = requests.post(url, data=req_xml.encode('utf-8'), headers={'Content-Type': 'text/xml'}, timeout=5)
-        if res.status_code == 200:
+        if res.status_code == 200 and "ERR_NGROK" not in res.text:
             root = ET.fromstring(res.text)
             names = [elem.text for elem in root.findall('.//NAME') if elem.text]
             return sorted(list(set(names)))
@@ -54,7 +54,7 @@ def get_tally_items(company):
     </ENVELOPE>"""
     try:
         res = requests.post(url, data=req_xml.encode('utf-8'), headers={'Content-Type': 'text/xml'}, timeout=5)
-        if res.status_code == 200:
+        if res.status_code == 200 and "ERR_NGROK" not in res.text:
             root = ET.fromstring(res.text)
             names = [elem.text for elem in root.findall('.//NAME') if elem.text]
             return sorted(list(set(names)))
@@ -199,8 +199,10 @@ if submitted:
     try:
         response = requests.post(url, data=xml_data.encode('utf-8'), headers={'Content-Type': 'text/xml'})
         
-        # 5. Check Response from Tally
-        if "<CREATED>1</CREATED>" in response.text:
+        # 5. Check Response from Tally or Ngrok
+        if "ERR_NGROK" in response.text:
+            st.error("Ngrok tunnel is offline. Please restart 'ngrok http 9000' on your desktop and try again.")
+        elif "<CREATED>1</CREATED>" in response.text:
             st.success(f"Invoice successfully created in {company_name}! Tally has automatically assigned the next invoice number.")
         else:
             st.error(f"Database Error: {response.text}")
