@@ -74,5 +74,71 @@ if submitted:
 
     # Build E-Way Bill XML block if enabled and a number is provided
     eway_xml = ""
-    if e_way_bill_val ==
+    if e_way_bill_val == "Yes" and eway_bill_no.strip():
+        eway_xml = f"""<EWAYBILLDETAILS.LIST>
+                            <EWAYBILLNO>{eway_bill_no.strip()}</EWAYBILLNO>
+                            <EWAYBILLDATE>{fmt_eway_date}</EWAYBILLDATE>
+                        </EWAYBILLDETAILS.LIST>"""
+
+    # 4. Build the XML Payload 
+    xml_data = f"""<ENVELOPE>
+    <HEADER>
+        <TALLYREQUEST>Import Data</TALLYREQUEST>
+    </HEADER>
+    <BODY>
+        <IMPORTDATA>
+            <REQUESTDESC>
+                <REPORTNAME>Vouchers</REPORTNAME>
+                <STATICVARIABLES>
+                    <SVCURRENTCOMPANY>{company_name}</SVCURRENTCOMPANY>
+                </STATICVARIABLES>
+            </REQUESTDESC>
+            <REQUESTDATA>
+                <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                    <VOUCHER VCHTYPE="Sales" ACTION="Create" OBJVIEW="Accounting Voucher View">
+                        <DATE>{formatted_date}</DATE>
+                        <VOUCHERTYPENAME>Sales</VOUCHERTYPENAME>
+                        <PROVIDEEINVOICEDETAILS>{e_invoice_val}</PROVIDEEINVOICEDETAILS>
+                        <PROVIDEEWAYBILLDETAILS>{e_way_bill_val}</PROVIDEEWAYBILLDETAILS>
+                        <PARTYLEDGERNAME>{party_name}</PARTYLEDGERNAME>
+                        {eway_xml}
+                        <ALLLEDGERENTRIES.LIST>
+                            <LEDGERNAME>{party_name}</LEDGERNAME>
+                            <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+                            <AMOUNT>-{total_amount}</AMOUNT>
+                        </ALLLEDGERENTRIES.LIST>
+                        
+                        <ALLLEDGERENTRIES.LIST>
+                            <LEDGERNAME>{sales_ledger}</LEDGERNAME>
+                            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                            <AMOUNT>{base_amount}</AMOUNT>
+                            <INVENTORYALLOCATIONS.LIST>
+                                <STOCKITEMNAME>{item_name}</STOCKITEMNAME>
+                                <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                                <BILLEDQTY>{quantity} Mtr</BILLEDQTY>
+                                <RATE>{rate}/Mtr</RATE>
+                                <AMOUNT>{base_amount}</AMOUNT>
+                            </INVENTORYALLOCATIONS.LIST>
+                        </ALLLEDGERENTRIES.LIST>
+                        {tax_xml}
+                    </VOUCHER>
+                </TALLYMESSAGE>
+            </REQUESTDATA>
+        </IMPORTDATA>
+    </BODY>
+</ENVELOPE>"""
+
+    # 5. Push to Tally via Ngrok Tunnel
+    url = "https://consensus-geology-cobalt.ngrok-free.dev"
+    headers = {'Content-Type': 'text/xml'}
     
+    try:
+        response = requests.post(url, data=xml_data.encode('utf-8'), headers=headers)
+        
+        # 6. Check Response from Tally
+        if "<CREATED>1</CREATED>" in response.text:
+            st.success(f"Invoice successfully created in {company_name}! Tally has automatically assigned the next invoice number.")
+        else:
+            st.error(f"Database Error: {response.text}")
+    except Exception as e:
+        st.error(f"Connection failed: {e}. Check if your Ngrok tunnel is running on the desktop.")
