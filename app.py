@@ -1,11 +1,42 @@
 import streamlit as st
 import requests
+import xml.etree.ElementTree as ET
 from datetime import datetime
 
 # Configure page for mobile screens
 st.set_page_config(page_title="Mobile Invoice Generator", layout="centered")
 
 st.title("Create Sales Invoice")
+
+url = "https://consensus-geology-cobalt.ngrok-free.dev"
+
+# Helper function to fetch live customers from Tally
+@st.cache_data(ttl=60) # Caches the list for 60 seconds to keep your mobile app fast
+def get_tally_customers(company):
+    req_xml = f"""<ENVELOPE>
+        <HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER>
+        <BODY>
+            <EXPORTDATA>
+                <REQUESTDESC>
+                    <REPORTNAME>List of Accounts</REPORTNAME>
+                    <STATICVARIABLES>
+                        <SVCURRENTCOMPANY>{company}</SVCURRENTCOMPANY>
+                        <GROUPNAME>Sundry Debtors</GROUPNAME>
+                    </STATICVARIABLES>
+                </REQUESTDESC>
+            </EXPORTDATA>
+        </BODY>
+    </ENVELOPE>"""
+    try:
+        res = requests.post(url, data=req_xml.encode('utf-8'), headers={'Content-Type': 'text/xml'}, timeout=4)
+        if res.status_code == 200:
+            root = ET.fromstring(res.text)
+            # Extract all ledger names returned under Sundry Debtors
+            names = [elem.text for elem in root.findall('.//NAME') if elem.text]
+            return sorted(list(set(names)))
+    except Exception:
+        pass
+    return []
 
 # Create the input form
 with st.form("invoice_form"):
@@ -20,7 +51,14 @@ with st.form("invoice_form"):
     ])
     
     date = st.date_input("Invoice Date", datetime.today())
-    party_name = st.text_input("Customer Name (Exact Tally Ledger Name)")
+    
+    # Dynamic Customer Fetching
+    live_customers = get_tally_customers(company_name)
+    if live_customers:
+        party_name = st.selectbox("Customer Name", live_customers)
+    else:
+        party_name = st.text_input("Customer Name (Exact Tally Ledger Name) - Tunnel Offline")
+        
     item_name = st.text_input("Stock Item Name")
     quantity = st.number_input("Quantity (in Mtr)", min_value=1.0, value=1.0, step=1.0)
     rate = st.number_input("Rate per unit", min_value=0.01, value=145.00, step=0.01)
@@ -127,15 +165,11 @@ if submitted:
         </IMPORTDATA>
     </BODY>
 </ENVELOPE>"""
-
-    # 5. Push to Tally via Ngrok Tunnel
-    url = "https://consensus-geology-cobalt.ngrok-free.dev"
-    headers = {'Content-Type': 'text/xml'}
     
     try:
-        response = requests.post(url, data=xml_data.encode('utf-8'), headers=headers)
+        response = requests.post(url, data=xml_data.encode('utf-8'), headers={'Content-Type': 'text/xml'})
         
-        # 6. Check Response from Tally
+        # 5. Check Response from Tally
         if "<CREATED>1</CREATED>" in response.text:
             st.success(f"Invoice successfully created in {company_name}! Tally has automatically assigned the next invoice number.")
         else:
