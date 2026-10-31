@@ -68,7 +68,7 @@ if submit_button:
     </ENVELOPE>"""
 
     # Replace with your active Ngrok URL routing to port 9000
-    url = "https://your-ngrok-url.app" 
+    url = "https://consensus-geology-cobalt.ngrok-free.dev" 
     headers = {'Content-Type': 'text/xml'}
 
     try:
