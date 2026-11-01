@@ -6,6 +6,25 @@ from datetime import datetime
 # Configure page for mobile screens
 st.set_page_config(page_title="Mobile Invoice Generator", layout="centered")
 
+# --- SECURITY LOCK ---
+# Change "12345" to your desired secret PIN or password
+APP_PASSWORD = "Nchheda@985"
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    st.title("🔒 App Locked")
+    pwd = st.text_input("Enter Access PIN", type="password")
+    if st.button("Unlock"):
+        if pwd == APP_PASSWORD:
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Access Denied: Incorrect PIN")
+    st.stop()  # Prevents the rest of the app from loading until unlocked
+# ---------------------
+
 st.title("Create Sales Invoice")
 
 url = "https://consensus-geology-cobalt.ngrok-free.dev"
@@ -170,41 +189,4 @@ if submitted:
                         <PROVIDEEWAYBILLDETAILS>{e_way_bill_val}</PROVIDEEWAYBILLDETAILS>
                         <PARTYLEDGERNAME>{party_name}</PARTYLEDGERNAME>
                         {eway_xml}
-                        <ALLLEDGERENTRIES.LIST>
-                            <LEDGERNAME>{party_name}</LEDGERNAME>
-                            <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
-                            <AMOUNT>-{total_amount}</AMOUNT>
-                        </ALLLEDGERENTRIES.LIST>
-                        
-                        <ALLLEDGERENTRIES.LIST>
-                            <LEDGERNAME>{sales_ledger}</LEDGERNAME>
-                            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
-                            <AMOUNT>{base_amount}</AMOUNT>
-                            <INVENTORYALLOCATIONS.LIST>
-                                <STOCKITEMNAME>{item_name}</STOCKITEMNAME>
-                                <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
-                                <BILLEDQTY>{quantity} Mtr</BILLEDQTY>
-                                <RATE>{rate}/Mtr</RATE>
-                                <AMOUNT>{base_amount}</AMOUNT>
-                            </INVENTORYALLOCATIONS.LIST>
-                        </ALLLEDGERENTRIES.LIST>
-                        {tax_xml}
-                    </VOUCHER>
-                </TALLYMESSAGE>
-            </REQUESTDATA>
-        </IMPORTDATA>
-    </BODY>
-</ENVELOPE>"""
-    
-    try:
-        response = requests.post(url, data=xml_data.encode('utf-8'), headers={'Content-Type': 'text/xml'})
-        
-        # 5. Check Response from Tally or Ngrok
-        if "ERR_NGROK" in response.text:
-            st.error("Ngrok tunnel is offline. Please restart 'ngrok http 9000' on your desktop and try again.")
-        elif "<CREATED>1</CREATED>" in response.text:
-            st.success(f"Invoice successfully created in {company_name}! Tally has automatically assigned the next invoice number.")
-        else:
-            st.error(f"Database Error: {response.text}")
-    except Exception as e:
-        st.error(f"Connection failed: {e}. Check if your Ngrok tunnel is running on the desktop.")
+                        <ALLLEDGER
