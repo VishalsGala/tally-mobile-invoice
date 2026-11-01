@@ -189,4 +189,42 @@ if submitted:
                         <PROVIDEEWAYBILLDETAILS>{e_way_bill_val}</PROVIDEEWAYBILLDETAILS>
                         <PARTYLEDGERNAME>{party_name}</PARTYLEDGERNAME>
                         {eway_xml}
-                        <ALLLEDGER
+                        <ALLLEDGERENTRIES.LIST>
+                            <LEDGERNAME>{party_name}</LEDGERNAME>
+                            <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+                            <AMOUNT>-{total_amount}</AMOUNT>
+                        </ALLLEDGERENTRIES.LIST>
+                        
+                        <ALLLEDGERENTRIES.LIST>
+                            <LEDGERNAME>{sales_ledger}</LEDGERNAME>
+                            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                            <AMOUNT>{base_amount}</AMOUNT>
+                            <INVENTORYALLOCATIONS.LIST>
+                                <STOCKITEMNAME>{item_name}</STOCKITEMNAME>
+                                <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                                <BILLEDQTY>{quantity} Mtr</BILLEDQTY>
+                                <RATE>{rate}/Mtr</RATE>
+                                <AMOUNT>{base_amount}</AMOUNT>
+                            </INVENTORYALLOCATIONS.LIST>
+                        </ALLLEDGERENTRIES.LIST>
+                        {tax_xml}
+                    </VOUCHER>
+                </TALLYMESSAGE>
+            </REQUESTDATA>
+        </IMPORTDATA>
+    </BODY>
+</ENVELOPE>"""
+    
+    try:
+        response = requests.post(url, data=xml_data.encode('utf-8'), headers={'Content-Type': 'text/xml'})
+        
+        # 5. Check Response from Tally or Ngrok
+        if "ERR_NGROK" in response.text:
+            st.error("Ngrok tunnel is offline. Please restart 'ngrok http 9000' on your desktop and try again.")
+        elif "<CREATED>1</CREATED>" in response.text:
+            st.success(f"Invoice successfully created in {company_name}! Tally has automatically assigned the next invoice number.")
+        else:
+            st.error(f"Database Error: {response.text}")
+    except Exception as e:
+        st.error(f"Connection failed: {e}. Check if your Ngrok tunnel is running on the desktop.")
+        
