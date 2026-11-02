@@ -112,17 +112,5 @@ with st.form("invoice_form"):
     if live_items:
         item_name = st.selectbox("Stock Item Name", live_items)
     else:
-        item_name = st.text_input("Stock Item Name (Exact Tally Name) - Tunnel Offline")
+        item_
         
-    quantity = st.number_input("Quantity (in Mtr)", min_value=1.0, value=1.0, step=1.0)
-    rate = st.number_input("Rate per unit", min_value=0.01, value=145.00, step=0.01)
-    
-    # Taxes and E-Invoice Options
-    sale_type = st.radio("Sale Type", ["Local (CGST/SGST)", "Interstate (IGST)"])
-    e_invoice_option = st.radio("Generate E-invoice", ["No", "Yes"])
-    
-    # Manual E-Way Bill Inputs
-    e_way_bill_option = st.radio("Provide e-Way Bill Details", ["No", "Yes (Enter Manually)"])
-    eway_bill_no = st.text_input("E-Way Bill No. (Leave blank if No)")
-    eway_bill_date = st.date_input("E-Way Bill Date (Applies only if Yes)", datetime.today())
-    
