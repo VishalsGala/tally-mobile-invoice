@@ -112,5 +112,63 @@ with st.form("invoice_form"):
     if live_items:
         item_name = st.selectbox("Stock Item Name", live_items)
     else:
-        item_
+        item_name = st.text_input("Stock Item Name (Exact Tally Name) - Tunnel Offline")
         
+    quantity = st.number_input("Quantity (in Mtr)", min_value=1.0, value=1.0, step=1.0)
+    rate = st.number_input("Rate per unit", min_value=0.01, value=145.00, step=0.01)
+    
+    # Taxes and E-Invoice Options
+    sale_type = st.radio("Sale Type", ["Local (CGST/SGST)", "Interstate (IGST)"])
+    e_invoice_option = st.radio("Generate E-invoice", ["No", "Yes"])
+    
+    # Manual E-Way Bill Inputs
+    e_way_bill_option = st.radio("Provide e-Way Bill Details", ["No", "Yes (Enter Manually)"])
+    eway_bill_no = st.text_input("E-Way Bill No. (Leave blank if No)")
+    eway_bill_date = st.date_input("E-Way Bill Date (Applies only if Yes)", datetime.today())
+    
+    # Form Submit Button
+    submitted = st.form_submit_button("Push to Database")
+
+if submitted:
+    # 1. Format dates for Tally (YYYYMMDD)
+    formatted_date = date.strftime("%Y%m%d")
+    fmt_eway_date = eway_bill_date.strftime("%Y%m%d")
+    
+    # 2. Extract Yes/No selections
+    e_invoice_val = "Yes" if "Yes" in e_invoice_option else "No"
+    e_way_bill_val = "Yes" if "Yes" in e_way_bill_option else "No"
+    
+    # 3. Calculate Amounts and Tax XML based on selection
+    base_amount = quantity * rate
+    
+    if sale_type == "Local (CGST/SGST)":
+        tax_amount = base_amount * 0.025  # 2.5% for CGST/SGST
+        total_amount = base_amount + (tax_amount * 2)
+        sales_ledger = "5903-5% Local-Sales"
+        tax_xml = f"""<ALLLEDGERENTRIES.LIST>
+                            <LEDGERNAME>2.5% CGST on Sales</LEDGERNAME>
+                            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                            <AMOUNT>{tax_amount}</AMOUNT>
+                        </ALLLEDGERENTRIES.LIST>
+                        <ALLLEDGERENTRIES.LIST>
+                            <LEDGERNAME>2.5% SGST on Sales</LEDGERNAME>
+                            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                            <AMOUNT>{tax_amount}</AMOUNT>
+                        </ALLLEDGERENTRIES.LIST>"""
+    else:
+        tax_amount = base_amount * 0.05  # 5% for IGST
+        total_amount = base_amount + tax_amount
+        sales_ledger = "5% IGST On Sales" 
+        tax_xml = f"""<ALLLEDGERENTRIES.LIST>
+                            <LEDGERNAME>5% IGST On Sales</LEDGERNAME>
+                            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                            <AMOUNT>{tax_amount}</AMOUNT>
+                        </ALLLEDGERENTRIES.LIST>"""
+
+    # Build E-Way Bill XML block if enabled and a number is provided
+    eway_xml = ""
+    if e_way_bill_val == "Yes" and eway_bill_no.strip():
+        eway_xml = f"""<EWAYBILLDETAILS.LIST>
+                            <EWAYBILLNO>{eway_bill_no.strip()}</EWAYBILLNO>
+                            <EWAYBILLDATE>{fmt_eway_date}</EWAYBILLDATE>
+                        </EWAY
