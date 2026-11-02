@@ -157,9 +157,9 @@ if submitted:
     else:
         tax_amount = base_amount * 0.05  # 5% for IGST
         total_amount = base_amount + tax_amount
-        sales_ledger = "5903-5% Interstate-Sales" 
+        sales_ledger = "5% IGST On Sales" 
         tax_xml = f"""<ALLLEDGERENTRIES.LIST>
-                            <LEDGERNAME>5% IGST on Sales</LEDGERNAME>
+                            <LEDGERNAME>5% IGST On Sales</LEDGERNAME>
                             <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
                             <AMOUNT>{tax_amount}</AMOUNT>
                         </ALLLEDGERENTRIES.LIST>"""
@@ -200,36 +200,5 @@ if submitted:
                             <AMOUNT>-{total_amount}</AMOUNT>
                         </ALLLEDGERENTRIES.LIST>
                         
-                        <ALLLEDGERENTRIES.LIST>
-                            <LEDGERNAME>{sales_ledger}</LEDGERNAME>
-                            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
-                            <AMOUNT>{base_amount}</AMOUNT>
-                            <INVENTORYALLOCATIONS.LIST>
-                                <STOCKITEMNAME>{item_name}</STOCKITEMNAME>
-                                <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
-                                <BILLEDQTY>{quantity} Mtr</BILLEDQTY>
-                                <RATE>{rate}/Mtr</RATE>
-                                <AMOUNT>{base_amount}</AMOUNT>
-                            </INVENTORYALLOCATIONS.LIST>
-                        </ALLLEDGERENTRIES.LIST>
-                        {tax_xml}
-                    </VOUCHER>
-                </TALLYMESSAGE>
-            </REQUESTDATA>
-        </IMPORTDATA>
-    </BODY>
-</ENVELOPE>"""
+                        <ALLLEDGERENTRIES.LIST
     
-    try:
-        response = requests.post(url, data=xml_data.encode('utf-8'), headers=api_headers)
-        
-        # 5. Check Response from Tally or Ngrok
-        if "ERR_NGROK" in response.text:
-            st.error("Ngrok tunnel is offline. Please restart 'ngrok http 9000' on your desktop and try again.")
-        elif "<CREATED>1</CREATED>" in response.text:
-            st.success(f"Invoice successfully created in {company_name}! Tally has automatically assigned the next invoice number.")
-        else:
-            st.error(f"Database Error: {response.text}")
-    except Exception as e:
-        st.error(f"Connection failed: {e}. Check if your Ngrok tunnel is running on the desktop.")
-        
