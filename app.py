@@ -25,20 +25,28 @@ if not st.session_state.authenticated:
 # ---------------------
 
 url = "https://consensus-geology-cobalt.ngrok-free.dev"
-api_headers = {'Content-Type': 'text/xml', 'ngrok-skip-browser-warning': 'true'}
+
+# Required headers to completely bypass Ngrok's free-tier blockers
+api_headers = {
+    'Content-Type': 'text/xml', 
+    'ngrok-skip-browser-warning': 'true',
+    'User-Agent': 'TallyMobileApp/1.0'
+}
 
 # Sidebar Navigation
 st.sidebar.title("Navigation")
 menu = st.sidebar.radio("Go to", ["Sales Invoice", "Receipt Entry"])
 
-# Shared Helper Functions
+# Shared Helper Functions (Timeout increased to 15 seconds to prevent drops)
 def get_tally_customers(company):
     req_xml = f"""<ENVELOPE><HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER><BODY><EXPORTDATA><REQUESTDESC><REPORTNAME>List of Accounts</REPORTNAME><STATICVARIABLES><SVCURRENTCOMPANY>{company}</SVCURRENTCOMPANY><GROUPNAME>Sundry Debtors</GROUPNAME></STATICVARIABLES></REQUESTDESC></EXPORTDATA></BODY></ENVELOPE>"""
     try:
-        res = requests.post(url, data=req_xml.encode('utf-8'), headers=api_headers, timeout=5)
-        if res.status_code == 200 and "ERR_NGROK" not in res.text:
+        res = requests.post(url, data=req_xml.encode('utf-8'), headers=api_headers, timeout=15)
+        if res.status_code == 200 and "ERR_NGROK" not in res.text and "<html" not in res.text.lower():
             root = ET.fromstring(res.text)
-            return sorted(list(set([elem.text for elem in root.findall('.//NAME') if elem.text])))
+            names = [elem.text for elem in root.findall('.//NAME') if elem.text]
+            if names:
+                return sorted(list(set(names)))
     except Exception:
         pass
     return []
@@ -46,10 +54,12 @@ def get_tally_customers(company):
 def get_tally_items(company):
     req_xml = f"""<ENVELOPE><HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER><BODY><EXPORTDATA><REQUESTDESC><REPORTNAME>List of Accounts</REPORTNAME><STATICVARIABLES><SVCURRENTCOMPANY>{company}</SVCURRENTCOMPANY><ACCOUNTTYPE>Stock Items</ACCOUNTTYPE></STATICVARIABLES></REQUESTDESC></EXPORTDATA></BODY></ENVELOPE>"""
     try:
-        res = requests.post(url, data=req_xml.encode('utf-8'), headers=api_headers, timeout=5)
-        if res.status_code == 200 and "ERR_NGROK" not in res.text:
+        res = requests.post(url, data=req_xml.encode('utf-8'), headers=api_headers, timeout=15)
+        if res.status_code == 200 and "ERR_NGROK" not in res.text and "<html" not in res.text.lower():
             root = ET.fromstring(res.text)
-            return sorted(list(set([elem.text for elem in root.findall('.//NAME') if elem.text])))
+            names = [elem.text for elem in root.findall('.//NAME') if elem.text]
+            if names:
+                return sorted(list(set(names)))
     except Exception:
         pass
     return []
@@ -69,10 +79,10 @@ if menu == "Sales Invoice":
         date = st.date_input("Invoice Date", datetime.today(), key="sales_date")
         
         live_customers = get_tally_customers(company_name)
-        party_name = st.selectbox("Customer Name", live_customers) if live_customers else st.text_input("Customer Name - Tunnel Offline")
+        party_name = st.selectbox("Customer Name", live_customers) if live_customers else st.text_input("Customer Name - Tunnel Offline or Tally Timeout")
             
         live_items = get_tally_items(company_name)
-        item_name = st.selectbox("Stock Item Name", live_items) if live_items else st.text_input("Stock Item Name - Tunnel Offline")
+        item_name = st.selectbox("Stock Item Name", live_items) if live_items else st.text_input("Stock Item Name - Tunnel Offline or Tally Timeout")
             
         quantity = st.number_input("Quantity (in Mtr)", min_value=1.0, value=1.0, step=1.0)
         rate = st.number_input("Rate per unit", min_value=0.01, value=145.00, step=0.01)
@@ -107,13 +117,13 @@ if menu == "Sales Invoice":
             xml_data = f"""<ENVELOPE><HEADER><TALLYREQUEST>Import Data</TALLYREQUEST></HEADER><BODY><IMPORTDATA><REQUESTDESC><REPORTNAME>Vouchers</REPORTNAME><STATICVARIABLES><SVCURRENTCOMPANY>{company_name}</SVCURRENTCOMPANY></STATICVARIABLES></REQUESTDESC><REQUESTDATA><TALLYMESSAGE xmlns:UDF="TallyUDF"><VOUCHER VCHTYPE="Sales" ACTION="Create" OBJVIEW="Accounting Voucher View"><DATE>{formatted_date}</DATE><VOUCHERTYPENAME>Sales</VOUCHERTYPENAME><PROVIDEEINVOICEDETAILS>{e_invoice_val}</PROVIDEEINVOICEDETAILS><PROVIDEEWAYBILLDETAILS>{e_way_bill_val}</PROVIDEEWAYBILLDETAILS><PARTYLEDGERNAME>{party_name}</PARTYLEDGERNAME>{eway_xml}<ALLLEDGERENTRIES.LIST><LEDGERNAME>{party_name}</LEDGERNAME><ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE><AMOUNT>-{total_amount}</AMOUNT></ALLLEDGERENTRIES.LIST><ALLLEDGERENTRIES.LIST><LEDGERNAME>{sales_ledger}</LEDGERNAME><ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE><AMOUNT>{base_amount}</AMOUNT><INVENTORYALLOCATIONS.LIST><STOCKITEMNAME>{item_name}</STOCKITEMNAME><ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE><BILLEDQTY>{quantity} Mtr</BILLEDQTY><RATE>{rate}/Mtr</RATE><AMOUNT>{base_amount}</AMOUNT></INVENTORYALLOCATIONS.LIST></ALLLEDGERENTRIES.LIST>{tax_xml}</VOUCHER></TALLYMESSAGE></REQUESTDATA></IMPORTDATA></BODY></ENVELOPE>"""
             
             try:
-                response = requests.post(url, data=xml_data.encode('utf-8'), headers=api_headers)
+                response = requests.post(url, data=xml_data.encode('utf-8'), headers=api_headers, timeout=15)
                 if "ERR_NGROK" in response.text:
                     st.error("Ngrok tunnel offline.")
                 elif "<CREATED>1</CREATED>" in response.text:
                     st.success("Sales Invoice created successfully!")
                 else:
-                    st.error(f"Error: {response.text}")
+                    st.error(f"Database Error: {response.text}")
             except Exception as e:
                 st.error(f"Connection failed: {e}")
 
@@ -128,7 +138,7 @@ elif menu == "Receipt Entry":
         date = st.date_input("Receipt Date", datetime.today(), key="receipt_date")
         
         live_customers = get_tally_customers(company_name)
-        party_name = st.selectbox("Received From", live_customers) if live_customers else st.text_input("Customer Name - Tunnel Offline")
+        party_name = st.selectbox("Received From", live_customers) if live_customers else st.text_input("Customer Name - Tunnel Offline or Tally Timeout")
         
         receipt_mode = st.selectbox("Payment Mode", ["Cash", "Bank Account (NEFT/RTGS/UPI)"])
         amount = st.number_input("Amount Received", min_value=1.0, value=1000.0, step=1.0)
@@ -141,13 +151,13 @@ elif menu == "Receipt Entry":
             xml_data = f"""<ENVELOPE><HEADER><TALLYREQUEST>Import Data</TALLYREQUEST></HEADER><BODY><IMPORTDATA><REQUESTDESC><REPORTNAME>Vouchers</REPORTNAME><STATICVARIABLES><SVCURRENTCOMPANY>{company_name}</SVCURRENTCOMPANY></STATICVARIABLES></REQUESTDESC><REQUESTDATA><TALLYMESSAGE xmlns:UDF="TallyUDF"><VOUCHER VCHTYPE="Receipt" ACTION="Create"><DATE>{formatted_date}</DATE><VOUCHERTYPENAME>Receipt</VOUCHERTYPENAME><NARRATION>{narration}</NARRATION><ALLLEDGERENTRIES.LIST><LEDGERNAME>{party_name}</LEDGERNAME><ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE><AMOUNT>{amount}</AMOUNT></ALLLEDGERENTRIES.LIST><ALLLEDGERENTRIES.LIST><LEDGERNAME>{ledger_account}</LEDGERNAME><ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE><AMOUNT>-{amount}</AMOUNT></ALLLEDGERENTRIES.LIST></VOUCHER></TALLYMESSAGE></REQUESTDATA></IMPORTDATA></BODY></ENVELOPE>"""
             
             try:
-                response = requests.post(url, data=xml_data.encode('utf-8'), headers=api_headers)
+                response = requests.post(url, data=xml_data.encode('utf-8'), headers=api_headers, timeout=15)
                 if "ERR_NGROK" in response.text:
                     st.error("Ngrok tunnel offline.")
                 elif "<CREATED>1</CREATED>" in response.text:
                     st.success("Receipt Voucher created successfully!")
                 else:
-                    st.error(f"Error: {response.text}")
+                    st.error(f"Database Error: {response.text}")
             except Exception as e:
                 st.error(f"Connection failed: {e}")
 
