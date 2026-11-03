@@ -26,18 +26,19 @@ if not st.session_state.authenticated:
 
 url = "https://consensus-geology-cobalt.ngrok-free.dev"
 
-# Required headers to completely bypass Ngrok's free-tier blockers
+# Upgraded headers to mask the request and bypass Ngrok warnings
 api_headers = {
     'Content-Type': 'text/xml', 
-    'ngrok-skip-browser-warning': 'true',
-    'User-Agent': 'TallyMobileApp/1.0'
+    'ngrok-skip-browser-warning': 'any',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+    'Accept': '*/*'
 }
 
 # Sidebar Navigation
 st.sidebar.title("Navigation")
 menu = st.sidebar.radio("Go to", ["Sales Invoice", "Receipt Entry"])
 
-# Shared Helper Functions (Timeout increased to 15 seconds to prevent drops)
+# Shared Helper Functions
 def get_tally_customers(company):
     req_xml = f"""<ENVELOPE><HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER><BODY><EXPORTDATA><REQUESTDESC><REPORTNAME>List of Accounts</REPORTNAME><STATICVARIABLES><SVCURRENTCOMPANY>{company}</SVCURRENTCOMPANY><GROUPNAME>Sundry Debtors</GROUPNAME></STATICVARIABLES></REQUESTDESC></EXPORTDATA></BODY></ENVELOPE>"""
     try:
@@ -109,8 +110,8 @@ if menu == "Sales Invoice":
             else:
                 tax_amount = base_amount * 0.05
                 total_amount = base_amount + tax_amount
-                sales_ledger = "5% IGST On Sales" 
-                tax_xml = f"""<ALLLEDGERENTRIES.LIST><LEDGERNAME>5% IGST On Sales</LEDGERNAME><ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE><AMOUNT>{tax_amount}</AMOUNT></ALLLEDGERENTRIES.LIST>"""
+                sales_ledger = "OMS 5% GST" 
+                tax_xml = f"""<ALLLEDGERENTRIES.LIST><LEDGERNAME>OMS 5% GST</LEDGERNAME><ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE><AMOUNT>{tax_amount}</AMOUNT></ALLLEDGERENTRIES.LIST>"""
 
             eway_xml = f"""<EWAYBILLDETAILS.LIST><EWAYBILLNO>{eway_bill_no.strip()}</EWAYBILLNO><EWAYBILLDATE>{fmt_eway_date}</EWAYBILLDATE></EWAYBILLDETAILS.LIST>""" if e_way_bill_val == "Yes" and eway_bill_no.strip() else ""
 
