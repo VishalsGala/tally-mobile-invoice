@@ -3,7 +3,6 @@ import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
-# Configure page for mobile screens
 st.set_page_config(page_title="Tally Mobile ERP", layout="centered", initial_sidebar_state="expanded")
 
 # --- SECURITY LOCK ---
@@ -26,47 +25,30 @@ if not st.session_state.authenticated:
 
 url = "https://consensus-geology-cobalt.ngrok-free.dev"
 
-# Upgraded headers to mask the request and bypass Ngrok warnings
 api_headers = {
     'Content-Type': 'text/xml', 
-    'ngrok-skip-browser-warning': 'any',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+    'ngrok-skip-browser-warning': '69420',
+    'User-Agent': 'PostmanRuntime/7.32.3',
     'Accept': '*/*'
 }
 
-# Sidebar Navigation
 st.sidebar.title("Navigation")
 menu = st.sidebar.radio("Go to", ["Sales Invoice", "Receipt Entry"])
 
-# Shared Helper Functions
-def get_tally_customers(company):
-    req_xml = f"""<ENVELOPE><HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER><BODY><EXPORTDATA><REQUESTDESC><REPORTNAME>List of Accounts</REPORTNAME><STATICVARIABLES><SVCURRENTCOMPANY>{company}</SVCURRENTCOMPANY><GROUPNAME>Sundry Debtors</GROUPNAME></STATICVARIABLES></REQUESTDESC></EXPORTDATA></BODY></ENVELOPE>"""
-    try:
-        res = requests.post(url, data=req_xml.encode('utf-8'), headers=api_headers, timeout=15)
-        if res.status_code == 200 and "ERR_NGROK" not in res.text and "<html" not in res.text.lower():
-            root = ET.fromstring(res.text)
-            names = [elem.text for elem in root.findall('.//NAME') if elem.text]
-            if names:
-                return sorted(list(set(names)))
-    except Exception:
-        pass
-    return []
-
-def get_tally_items(company):
-    req_xml = f"""<ENVELOPE><HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER><BODY><EXPORTDATA><REQUESTDESC><REPORTNAME>List of Accounts</REPORTNAME><STATICVARIABLES><SVCURRENTCOMPANY>{company}</SVCURRENTCOMPANY><ACCOUNTTYPE>Stock Items</ACCOUNTTYPE></STATICVARIABLES></REQUESTDESC></EXPORTDATA></BODY></ENVELOPE>"""
-    try:
-        res = requests.post(url, data=req_xml.encode('utf-8'), headers=api_headers, timeout=15)
-        if res.status_code == 200 and "ERR_NGROK" not in res.text and "<html" not in res.text.lower():
-            root = ET.fromstring(res.text)
-            names = [elem.text for elem in root.findall('.//NAME') if elem.text]
-            if names:
-                return sorted(list(set(names)))
-    except Exception:
-        pass
-    return []
-
-# Shared Company Selection
 companies = ["Ankit Enterprise", "Shree Ashapura Trading Company", "Laxmi Impex", "Ankit Enterprise (Partnership firm)"]
+
+def fetch_tally_data(company, report_type):
+    req_xml = f"""<ENVELOPE><HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER><BODY><EXPORTDATA><REQUESTDESC><REPORTNAME>List of Accounts</REPORTNAME><STATICVARIABLES><SVCURRENTCOMPANY>{company}</SVCURRENTCOMPANY>{report_type}</STATICVARIABLES></REQUESTDESC></EXPORTDATA></BODY></ENVELOPE>"""
+    try:
+        res = requests.post(url, data=req_xml.encode('utf-8'), headers=api_headers, timeout=15)
+        if res.status_code == 200 and "ERR_NGROK" not in res.text and "<html" not in res.text.lower():
+            root = ET.fromstring(res.text)
+            names = [elem.text for elem in root.findall('.//NAME') if elem.text]
+            if names:
+                return sorted(list(set(names)))
+    except Exception:
+        pass
+    return []
 
 # ==========================================
 # MODULE 1: SALES INVOICE
@@ -74,16 +56,29 @@ companies = ["Ankit Enterprise", "Shree Ashapura Trading Company", "Laxmi Impex"
 if menu == "Sales Invoice":
     st.title("Create Sales Invoice")
     
+    company_name = st.selectbox("Select Company", companies, key="sales_company")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🔄 Sync Customers"):
+            st.session_state['customers'] = fetch_tally_data(company_name, "<GROUPNAME>Sundry Debtors</GROUPNAME>")
+    with col2:
+        if st.button("🔄 Sync Stock Items"):
+            st.session_state['items'] = fetch_tally_data(company_name, "<ACCOUNTTYPE>Stock Items</ACCOUNTTYPE>")
+            
     with st.form("invoice_form"):
         st.text_input("Invoice Number", value="Auto-assigned by Tally upon push", disabled=True)
-        company_name = st.selectbox("Select Company", companies, key="sales_company")
         date = st.date_input("Invoice Date", datetime.today(), key="sales_date")
         
-        live_customers = get_tally_customers(company_name)
-        party_name = st.selectbox("Customer Name", live_customers) if live_customers else st.text_input("Customer Name - Tunnel Offline or Tally Timeout")
+        if 'customers' in st.session_state and st.session_state['customers']:
+            party_name = st.selectbox("Customer Name", st.session_state['customers'])
+        else:
+            party_name = st.text_input("Customer Name (Manual Entry)")
             
-        live_items = get_tally_items(company_name)
-        item_name = st.selectbox("Stock Item Name", live_items) if live_items else st.text_input("Stock Item Name - Tunnel Offline or Tally Timeout")
+        if 'items' in st.session_state and st.session_state['items']:
+            item_name = st.selectbox("Stock Item Name", st.session_state['items'])
+        else:
+            item_name = st.text_input("Stock Item Name (Manual Entry)")
             
         quantity = st.number_input("Quantity (in Mtr)", min_value=1.0, value=1.0, step=1.0)
         rate = st.number_input("Rate per unit", min_value=0.01, value=145.00, step=0.01)
@@ -134,12 +129,18 @@ if menu == "Sales Invoice":
 elif menu == "Receipt Entry":
     st.title("Enter Payment Receipt")
     
+    company_name = st.selectbox("Select Company", companies, key="receipt_company")
+    
+    if st.button("🔄 Sync Customers"):
+        st.session_state['customers'] = fetch_tally_data(company_name, "<GROUPNAME>Sundry Debtors</GROUPNAME>")
+    
     with st.form("receipt_form"):
-        company_name = st.selectbox("Select Company", companies, key="receipt_company")
         date = st.date_input("Receipt Date", datetime.today(), key="receipt_date")
         
-        live_customers = get_tally_customers(company_name)
-        party_name = st.selectbox("Received From", live_customers) if live_customers else st.text_input("Customer Name - Tunnel Offline or Tally Timeout")
+        if 'customers' in st.session_state and st.session_state['customers']:
+            party_name = st.selectbox("Received From", st.session_state['customers'])
+        else:
+            party_name = st.text_input("Received From (Manual Entry)")
         
         receipt_mode = st.selectbox("Payment Mode", ["Cash", "Bank Account (NEFT/RTGS/UPI)"])
         amount = st.number_input("Amount Received", min_value=1.0, value=1000.0, step=1.0)
@@ -147,7 +148,7 @@ elif menu == "Receipt Entry":
         
         if st.form_submit_button("Push Receipt"):
             formatted_date = date.strftime("%Y%m%d")
-            ledger_account = "Cash" if receipt_mode == "Cash" else "Bank" # Ensure "Bank" ledger matches exact Tally name
+            ledger_account = "Cash" if receipt_mode == "Cash" else "Bank" 
             
             xml_data = f"""<ENVELOPE><HEADER><TALLYREQUEST>Import Data</TALLYREQUEST></HEADER><BODY><IMPORTDATA><REQUESTDESC><REPORTNAME>Vouchers</REPORTNAME><STATICVARIABLES><SVCURRENTCOMPANY>{company_name}</SVCURRENTCOMPANY></STATICVARIABLES></REQUESTDESC><REQUESTDATA><TALLYMESSAGE xmlns:UDF="TallyUDF"><VOUCHER VCHTYPE="Receipt" ACTION="Create"><DATE>{formatted_date}</DATE><VOUCHERTYPENAME>Receipt</VOUCHERTYPENAME><NARRATION>{narration}</NARRATION><ALLLEDGERENTRIES.LIST><LEDGERNAME>{party_name}</LEDGERNAME><ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE><AMOUNT>{amount}</AMOUNT></ALLLEDGERENTRIES.LIST><ALLLEDGERENTRIES.LIST><LEDGERNAME>{ledger_account}</LEDGERNAME><ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE><AMOUNT>-{amount}</AMOUNT></ALLLEDGERENTRIES.LIST></VOUCHER></TALLYMESSAGE></REQUESTDATA></IMPORTDATA></BODY></ENVELOPE>"""
             
